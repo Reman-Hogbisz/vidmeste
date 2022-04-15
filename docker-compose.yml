@@ -6,21 +6,21 @@ services:
     environment:
       POSTGRES_USER: username
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: app
+      POSTGRES_DB: vidmeste
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
       interval: 10s
       timeout: 5s
       retries: 5
-  app:
+  vidmeste:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - '80:9999'
     environment:
-      DATABASE_URL: postgres://username:password@db/app
+      DATABASE_URL: postgres://username:password@db/vidmeste
     restart: unless-stopped
     depends_on:
       - db

@@ -1035,20 +1035,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rocket_vue_boilerplate"
-version = "0.1.0"
-dependencies = [
- "diesel",
- "diesel_migrations",
- "dotenv",
- "openssl",
- "openssl-probe",
- "rocket",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "rustc_version"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1526,6 +1512,20 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
+
+[[package]]
+name = "vidmeste"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "diesel_migrations",
+ "dotenv",
+ "openssl",
+ "openssl-probe",
+ "rocket",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "want"

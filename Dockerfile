@@ -70,7 +70,7 @@ COPY --from=builder /etc/group /etc/group
 WORKDIR /app
 
 # Copy our build
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/rocket_vue_boilerplate /app/rocket_vue_boilerplate
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/vidmeste /app/vidmeste
 COPY --from=builder /app/frontend/dist/ /app/static
 COPY --from=builder /app/entrypoint.sh /app/entrypoint.sh
 

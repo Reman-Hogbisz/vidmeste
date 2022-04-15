@@ -29,4 +29,4 @@ fi
 # echo "Finished processing all JS files"
 
 # Run download service
-/app/rocket_vue_boilerplate
+/app/vidmeste
