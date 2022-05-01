@@ -1,0 +1,14 @@
+[debug]
+address = "0.0.0.0"
+port = 9999
+
+[release]
+address = "0.0.0.0"
+port = 9999
+secret_key = "Dp8nFaRfpScS86md9cP8wvr3VrDuHHaTTN6g4QD8lmAzYpu85Jm3obPeMNRnZ2i9lxFqyPJVcVEt6Biq4d9HQP6k"
+
+[default.limits]
+forms = "64 kB"
+json = "1 MiB"
+msgpack = "2 MiB"
+"file/jpg" = "5 MiB"

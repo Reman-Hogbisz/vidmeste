@@ -10,6 +10,7 @@ extern crate diesel_migrations;
 
 embed_migrations!("migrations");
 
+mod auth;
 mod util;
 
 use diesel::prelude::*;
@@ -36,16 +37,16 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 #[rocket::main]
 async fn main() {
     dotenv().ok();
-    openssl_probe::init_ssl_cert_env_vars();
+    // openssl_probe::init_ssl_cert_env_vars();
 
-    let connection = create_connection().expect("Failed to connect to database");
+    // let connection = create_connection().expect("Failed to connect to database");
 
-    embedded_migrations::run(&connection).expect("Failed to run embedded migrations");
+    // embedded_migrations::run(&connection).expect("Failed to run embedded migrations");
 
-    std::mem::drop(connection);
+    // std::mem::drop(connection);
 
     match rocket::build()
-        .mount("/", routes![index, files])
+        .mount("/", routes![index, files, auth::get_auth, auth::do_work])
         .attach(crate::util::CORS)
         .launch()
         .await

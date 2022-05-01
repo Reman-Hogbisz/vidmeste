@@ -8,6 +8,8 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: vidmeste
     restart: always
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready"]
       interval: 10s
