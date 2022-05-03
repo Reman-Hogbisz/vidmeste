@@ -1,18 +1,22 @@
 use oauth2::reqwest::async_http_client;
-use oauth2::{basic::BasicClient, revocation::StandardRevocableToken, TokenResponse};
+use oauth2::{basic::BasicClient, revocation::StandardRevocableToken};
 use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, RevocationUrl,
     Scope, TokenUrl,
 };
-use rocket::response::content::Json;
-use serde_json::json;
+use rocket::http::{Cookie, CookieJar, SameSite};
+use rocket::response::Redirect;
+use rocket_oauth2::{OAuth2, TokenResponse};
 use std::borrow::Cow;
 use std::env;
+use std::fmt::Display;
 
-use crate::make_json_response;
+pub struct Google;
+pub struct Hogbisz;
+pub struct Discord;
 
-#[get("/me")]
-pub async fn get_auth() -> Json<String> {
+#[get("/login/google")]
+pub async fn google_login(cookies: &CookieJar<'_>) -> Redirect {
     let google_client_id = ClientId::new(
         env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
     );
@@ -33,7 +37,8 @@ pub async fn get_auth() -> Json<String> {
     )
     .set_redirect_uri(
         RedirectUrl::new(
-            env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "me/s2",
+            env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
+                + "/auth/google",
         )
         .expect("Invalid redirect URL"),
     )
@@ -61,83 +66,49 @@ pub async fn get_auth() -> Json<String> {
         "Sending back authorized url:\n\t{}\n",
         authorize_url.to_string()
     );
-    make_json_response!(200, authorize_url)
+    Redirect::to(authorize_url.to_string())
 }
 
-#[get("/me/s2?<code>&<state>")]
-pub async fn do_work(code: String, state: String) -> Json<String> {
-    let google_client_id = ClientId::new(
-        env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
+#[get("/auth/google?<state>&<code>")]
+pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_>) -> Redirect {
+    cookies.add_private(
+        Cookie::build("token", code)
+            .same_site(SameSite::Lax)
+            .finish(),
     );
-    let google_client_secret = ClientSecret::new(
-        env::var("GOOGLE_CLIENT_SECRET")
-            .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
-    );
-    let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
-        .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
-        .expect("Invalid token endpoint URL");
+    Redirect::to("/")
+}
 
-    // Set up the config for the Google OAuth2 process.
-    let client = BasicClient::new(
-        google_client_id,
-        Some(google_client_secret),
-        auth_url,
-        Some(token_url),
-    );
-
-    let code = AuthorizationCode::new(code);
-    let state = CsrfToken::new(state);
-
-    info!(
-        "Received code: {} with state {}",
-        code.secret(),
-        state.secret()
-    );
-
-    info!("Google returned the following code:\n\t{}\n", code.secret());
-
-    // Exchange the code with a token.
-    let token_response = client
-        .exchange_code(code)
-        .set_redirect_uri(Cow::Borrowed(
-            &RedirectUrl::new(
-                env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "me/s2",
-            )
-            .expect("Invalid redirect URL"),
-        ))
-        .request_async(async_http_client)
-        .await;
-
-    info!(
-        "Google returned the following token:\n\t{:?}\n",
-        token_response
-    );
-
-    // Revoke the obtained token
-    let token_response = token_response.unwrap();
-    let token_to_revoke: StandardRevocableToken = match token_response.refresh_token() {
-        Some(token) => token.into(),
-        None => token_response.access_token().into(),
-    };
-
-    match client
-        .set_revocation_uri(
-            RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
-                .expect("Invalid revocation endpoint URL"),
-        )
-        .revoke_token(token_to_revoke)
+#[get("/login/discord")]
+pub async fn discord_login(oauth2: OAuth2<Discord>, cookies: &CookieJar<'_>) -> Redirect {
+    oauth2
+        .get_redirect(cookies, &["identify", "email"])
         .unwrap()
-        .request_async(async_http_client)
-        .await
-    {
-        Ok(_) => {
-            info!("Token revoked successfully");
-            make_json_response!(200, "OK! Go back to your terminal :)")
-        }
-        Err(e) => {
-            error!("Error revoking token: {}", e);
-            make_json_response!(500, "Internal Server Error")
-        }
-    }
+}
+
+#[get("/auth/discord")]
+pub async fn discord_callback(token: TokenResponse<Discord>, cookies: &CookieJar<'_>) -> Redirect {
+    cookies.add_private(
+        Cookie::build("token", token.access_token().to_string())
+            .same_site(SameSite::Lax)
+            .finish(),
+    );
+    Redirect::to("/")
+}
+
+#[get("/login/hogbisz")]
+pub async fn hogbisz_login(oauth2: OAuth2<Hogbisz>, cookies: &CookieJar<'_>) -> Redirect {
+    oauth2
+        .get_redirect(cookies, &["email", "profile", "roles"])
+        .unwrap()
+}
+
+#[get("/auth/hogbisz")]
+pub async fn hogbisz_callback(token: TokenResponse<Hogbisz>, cookies: &CookieJar<'_>) -> Redirect {
+    cookies.add_private(
+        Cookie::build("token", token.access_token().to_string())
+            .same_site(SameSite::Lax)
+            .finish(),
+    );
+    Redirect::to("/")
 }

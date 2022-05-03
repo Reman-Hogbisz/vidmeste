@@ -9,7 +9,12 @@ secret_key = \"$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 88)\"
 forms = \"64 kB\"
 json = \"1 MiB\"
 msgpack = \"2 MiB\"
-\"file/jpg\" = \"5 MiB\"" > /app/Rocket.toml
+\"file/jpg\" = \"5 MiB\"
+[global.oauth.google]
+provider = \"Google\"
+client_id = \"$GOOGLE_CLIENT_ID\"
+client_secret = \"$GOOGLE_CLIENT_SECRET\"
+redirect_uri = \"$BASE_URL/auth/google\"" > /app/Rocket.toml
 fi
 
 # Replace env vars in JavaScript files USE THIS AS NEEDED

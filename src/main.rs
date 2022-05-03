@@ -16,6 +16,7 @@ mod util;
 use diesel::prelude::*;
 use dotenv::dotenv;
 use rocket::{fs::NamedFile, routes};
+use rocket_oauth2::OAuth2;
 use std::{
     env,
     path::{Path, PathBuf},
@@ -37,17 +38,32 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 #[rocket::main]
 async fn main() {
     dotenv().ok();
-    // openssl_probe::init_ssl_cert_env_vars();
+    openssl_probe::init_ssl_cert_env_vars();
 
-    // let connection = create_connection().expect("Failed to connect to database");
+    let connection = create_connection().expect("Failed to connect to database");
 
-    // embedded_migrations::run(&connection).expect("Failed to run embedded migrations");
+    embedded_migrations::run(&connection).expect("Failed to run embedded migrations");
 
-    // std::mem::drop(connection);
+    std::mem::drop(connection);
 
     match rocket::build()
-        .mount("/", routes![index, files, auth::get_auth, auth::do_work])
+        .mount(
+            "/",
+            routes![
+                index,
+                files,
+                auth::google_login,
+                auth::google_callback,
+                auth::hogbisz_login,
+                auth::hogbisz_callback,
+                auth::discord_login,
+                auth::discord_callback,
+            ],
+        )
         .attach(crate::util::CORS)
+        .attach(OAuth2::<auth::Google>::fairing("google"))
+        .attach(OAuth2::<auth::Hogbisz>::fairing("hogbisz"))
+        .attach(OAuth2::<auth::Discord>::fairing("discord"))
         .launch()
         .await
     {
