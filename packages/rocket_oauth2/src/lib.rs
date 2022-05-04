@@ -156,11 +156,12 @@ use rocket::response::Redirect;
 use rocket::{Build, Ignite, Rocket, Sentinel};
 use serde_json::Value;
 
-const STATE_COOKIE_NAME: &str = "rocket_oauth2_state";
+/// State cookie name
+pub const STATE_COOKIE_NAME: &str = "rocket_oauth2_state";
 
-// Random generation of state for defense against CSRF.
-// See RFC 6749 §10.12 for more details.
-fn generate_state(rng: &mut impl rand::RngCore) -> Result<String, Error> {
+/// Random generation of state for defense against CSRF.
+/// See RFC 6749 §10.12 for more details.
+pub fn generate_state(rng: &mut impl rand::RngCore) -> Result<String, Error> {
     let mut buf = [0; 16]; // 128 bits
     rng.try_fill_bytes(&mut buf).map_err(|_| {
         Error::new_from(
@@ -515,8 +516,14 @@ fn sentinel_abort<K: 'static>(rocket: &Rocket<Ignite>, wrapper: &str) -> bool {
     }
 
     let type_name = std::any::type_name::<K>();
-    error!("{}<{}> was used in a mounted route without attaching a matching fairing", wrapper, type_name);
-    info!("attach either OAuth2::<{0}>::fairing() or OAuth2::<{0}>::custom()", type_name);
+    error!(
+        "{}<{}> was used in a mounted route without attaching a matching fairing",
+        wrapper, type_name
+    );
+    info!(
+        "attach either OAuth2::<{0}>::fairing() or OAuth2::<{0}>::custom()",
+        type_name
+    );
     true
 }
 
@@ -589,7 +596,11 @@ impl<K: 'static> OAuth2<K> {
                 }
             };
 
-            Ok(Self::_init(rocket, hyper_rustls_adapter::HyperRustlsAdapter::default(), config))
+            Ok(Self::_init(
+                rocket,
+                hyper_rustls_adapter::HyperRustlsAdapter::default(),
+                config,
+            ))
         })
     }
 
