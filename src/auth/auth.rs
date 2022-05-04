@@ -1,8 +1,12 @@
+use crate::unwrap_or_return_option;
+
 use super::sql::{get_user_by_email, insert_user};
-use oauth2::basic::BasicClient;
+use oauth2::basic::{BasicClient, BasicErrorResponseType, BasicTokenType};
 use oauth2::{
-    AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, RevocationUrl,
-    Scope, TokenResponse, TokenUrl,
+    AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, EmptyExtraTokenFields,
+    RedirectUrl, RevocationErrorResponseType, RevocationUrl, Scope, StandardErrorResponse,
+    StandardRevocableToken, StandardTokenIntrospectionResponse, StandardTokenResponse,
+    TokenResponse, TokenUrl,
 };
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
 use rocket::response::Redirect;
@@ -14,51 +18,86 @@ pub struct Google;
 pub struct Hogbisz;
 pub struct Discord;
 
+fn generate_oauth_client<T: ToString>(
+    client_id: T,
+    client_secret: T,
+    auth_url: T,
+    token_url: T,
+    redirect_url: T,
+    revocation_url: T,
+) -> Client<
+    StandardErrorResponse<BasicErrorResponseType>,
+    StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
+    BasicTokenType,
+    StandardTokenIntrospectionResponse<EmptyExtraTokenFields, BasicTokenType>,
+    StandardRevocableToken,
+    StandardErrorResponse<RevocationErrorResponseType>,
+> {
+    let mut client = BasicClient::new(
+        ClientId::new(client_id.to_string()),
+        Some(ClientSecret::new(client_secret.to_string())),
+        unwrap_or_return_option!(AuthUrl::new(auth_url.to_string()).ok(), "Invalid auth URL."),
+        Some(unwrap_or_return_option!(
+            TokenUrl::new(token_url.to_string()).ok(),
+            "Failed to create token url"
+        )),
+    );
+    let client = client
+        .set_redirect_uri(unwrap_or_return_option!(
+            RedirectUrl::new(redirect_url.to_string()).ok(),
+            "Invalid redirect URL."
+        ))
+        .set_revocation_uri(unwrap_or_return_option!(
+            RevocationUrl::new(revocation_url.to_string()).ok(),
+            "Invalid revocation URL."
+        ));
+    client
+}
+
+fn generate_oauth_redirect<T: ToString>(
+    client_id: T,
+    client_secret: T,
+    auth_url: T,
+    token_url: T,
+    redirect_url: T,
+    revocation_url: T,
+    scopes: Vec<T>,
+) -> Option<String> {
+    let client = generate_oauth_client(
+        client_id,
+        client_secret,
+        auth_url,
+        token_url,
+        redirect_url,
+        revocation_url,
+    );
+    let mut auth_request = client.authorize_url(CsrfToken::new_random);
+    for scope in scopes {
+        auth_request = auth_request.add_scope(Scope::new(scope.to_string()));
+    }
+    let (authorize_url, _) = auth_request.url();
+    Some(authorize_url.to_string())
+}
+
 #[get("/login/google")]
 pub async fn google_login() -> Redirect {
-    let google_client_id = ClientId::new(
-        env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
-    );
-    let google_client_secret = ClientSecret::new(
-        env::var("GOOGLE_CLIENT_SECRET")
-            .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
-    );
-    let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
-        .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
-        .expect("Invalid token endpoint URL");
-
-    let client = BasicClient::new(
-        google_client_id,
-        Some(google_client_secret),
-        auth_url,
-        Some(token_url),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new(
+    Redirect::to(
+        match generate_oauth_redirect(
+            env::var("GOOGLE_CLIENT_ID")
+                .expect("Missing the GOOGLE_CLIENT_ID environment variable."),
+            env::var("GOOGLE_CLIENT_SECRET")
+                .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
+            "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
+            "https://www.googleapis.com/oauth2/v3/token".to_string(),
             env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
                 + "/auth/google",
-        )
-        .expect("Invalid redirect URL"),
+            "https://oauth2.googleapis.com/revoke".to_string(),
+            vec!["https://www.googleapis.com/auth/userinfo.email".to_string()],
+        ) {
+            Some(url) => url,
+            None => return Redirect::to("."),
+        },
     )
-    .set_revocation_uri(
-        RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
-            .expect("Invalid revocation endpoint URL"),
-    );
-
-    let (authorize_url, _) = client
-        .authorize_url(CsrfToken::new_random)
-        .add_scope(Scope::new(
-            "https://www.googleapis.com/auth/userinfo.email".to_string(),
-        ))
-        .add_scope(Scope::new("openid".to_string()))
-        .url();
-
-    info!(
-        "Sending back authorized url:\n\t{}\n",
-        authorize_url.to_string()
-    );
-    Redirect::to(authorize_url.to_string())
 }
 
 #[get("/auth/google?<state>&<code>")]
@@ -69,34 +108,14 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
             .same_site(SameSite::Lax)
             .finish(),
     );
-    let google_client_id = ClientId::new(
+    let client = generate_oauth_client(
         env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
-    );
-    let google_client_secret = ClientSecret::new(
         env::var("GOOGLE_CLIENT_SECRET")
             .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
-    );
-    let auth_url = AuthUrl::new("https://accounts.google.com/o/oauth2/v2/auth".to_string())
-        .expect("Invalid authorization endpoint URL");
-    let token_url = TokenUrl::new("https://www.googleapis.com/oauth2/v3/token".to_string())
-        .expect("Invalid token endpoint URL");
-
-    let client = BasicClient::new(
-        google_client_id,
-        Some(google_client_secret),
-        auth_url,
-        Some(token_url),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new(
-            env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
-                + "/auth/google",
-        )
-        .expect("Invalid redirect URL"),
-    )
-    .set_revocation_uri(
-        RevocationUrl::new("https://oauth2.googleapis.com/revoke".to_string())
-            .expect("Invalid revocation endpoint URL"),
+        "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
+        "https://www.googleapis.com/oauth2/v3/token".to_string(),
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/google",
+        "https://oauth2.googleapis.com/revoke".to_string(),
     );
     let access_token = match client
         .exchange_code(AuthorizationCode::new(code))
