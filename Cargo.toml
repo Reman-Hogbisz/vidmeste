@@ -15,5 +15,8 @@ diesel_migrations = "1.4.0"
 openssl = "0.10.38"
 openssl-probe = "0.1.5"
 
-rocket_oauth2 = { path = "rocket_oauth2" }
+rocket_oauth2 = { path = "./packages/rocket_oauth2" }
+rocket_seek_stream = { path = "./packages/rocket_seek_stream" }
 oauth2 = "4.2"
+rand = "0.8.5"
+ffprobe = "0.3.2"

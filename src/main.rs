@@ -1,17 +1,21 @@
 #[macro_use]
 extern crate rocket;
 
-extern crate openssl;
+#[macro_use]
+extern crate diesel_migrations;
+embed_migrations!("migrations");
+
 #[macro_use]
 extern crate diesel;
 
-#[macro_use]
-extern crate diesel_migrations;
+extern crate openssl;
 
-embed_migrations!("migrations");
-
-mod auth;
-mod util;
+pub mod api;
+pub mod auth;
+pub mod models;
+pub mod schema;
+pub mod util;
+pub mod video;
 
 use diesel::prelude::*;
 use dotenv::dotenv;
@@ -52,18 +56,34 @@ async fn main() {
             routes![
                 index,
                 files,
-                auth::google_login,
-                auth::google_callback,
-                auth::hogbisz_login,
-                auth::hogbisz_callback,
-                auth::discord_login,
-                auth::discord_callback,
+                crate::auth::auth::google_login,
+                crate::auth::auth::google_callback,
+                crate::auth::auth::hogbisz_login,
+                crate::auth::auth::hogbisz_callback,
+                crate::auth::auth::discord_login,
+                crate::auth::auth::discord_callback,
+            ],
+        )
+        .mount(
+            "/api",
+            routes![
+                crate::api::api::get_all_users,
+                crate::auth::auth::create_user,
+                crate::api::api::get_user_by_id,
+                crate::api::api::get_all_videos,
+                crate::api::api::get_video_with_id,
+            ],
+        )
+        .mount(
+            "/video",
+            routes![
+                crate::video::public::get_video,
+                crate::video::public::add_video,
             ],
         )
         .attach(crate::util::CORS)
-        .attach(OAuth2::<auth::Google>::fairing("google"))
-        .attach(OAuth2::<auth::Hogbisz>::fairing("hogbisz"))
-        .attach(OAuth2::<auth::Discord>::fairing("discord"))
+        .attach(OAuth2::<crate::auth::auth::Hogbisz>::fairing("hogbisz"))
+        .attach(OAuth2::<crate::auth::auth::Discord>::fairing("discord"))
         .launch()
         .await
     {
@@ -76,8 +96,8 @@ async fn main() {
 }
 
 fn create_connection() -> Option<PgConnection> {
-    let database_url = unwrap_or_return!(env::var("DATABASE_URL"), "Database URL not set.");
-    Some(unwrap_or_return!(
+    let database_url = unwrap_or_return_result!(env::var("DATABASE_URL"), "Database URL not set.");
+    Some(unwrap_or_return_result!(
         PgConnection::establish(&database_url),
         "Error connecting to database!"
     ))

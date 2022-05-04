@@ -4,19 +4,21 @@ use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, RevocationUrl,
     Scope, TokenUrl,
 };
-use rocket::http::{Cookie, CookieJar, SameSite};
+use rocket::http::{Cookie, CookieJar, SameSite, Status};
 use rocket::response::Redirect;
 use rocket_oauth2::{OAuth2, TokenResponse};
 use std::borrow::Cow;
 use std::env;
 use std::fmt::Display;
 
+use super::sql::insert_user;
+
 pub struct Google;
 pub struct Hogbisz;
 pub struct Discord;
 
 #[get("/login/google")]
-pub async fn google_login(cookies: &CookieJar<'_>) -> Redirect {
+pub async fn google_login() -> Redirect {
     let google_client_id = ClientId::new(
         env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
     );
@@ -47,7 +49,7 @@ pub async fn google_login(cookies: &CookieJar<'_>) -> Redirect {
             .expect("Invalid revocation endpoint URL"),
     );
 
-    let (authorize_url, csrf_state) = client
+    let (authorize_url, _) = client
         .authorize_url(CsrfToken::new_random)
         .add_scope(Scope::new(
             "https://www.googleapis.com/auth/calendar".to_string(),
@@ -56,11 +58,6 @@ pub async fn google_login(cookies: &CookieJar<'_>) -> Redirect {
             "https://www.googleapis.com/auth/plus.me".to_string(),
         ))
         .url();
-
-    info!(
-        "Google returned the following state:\n\t{}\n",
-        csrf_state.secret()
-    );
 
     info!(
         "Sending back authorized url:\n\t{}\n",
@@ -111,4 +108,18 @@ pub async fn hogbisz_callback(token: TokenResponse<Hogbisz>, cookies: &CookieJar
             .finish(),
     );
     Redirect::to("/")
+}
+
+#[post("/auth/create_user?<email>")]
+pub async fn create_user(email: String) -> Status {
+    match insert_user(email) {
+        Some(user) => {
+            info!("Created user: {}", user.email);
+            Status::Ok
+        }
+        None => {
+            info!("Failed to create user");
+            Status::InternalServerError
+        }
+    }
 }

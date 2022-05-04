@@ -16,7 +16,7 @@ macro_rules! make_json_response {
 }
 
 #[macro_export]
-macro_rules! unwrap_or_return {
+macro_rules! unwrap_or_return_result {
     ($r:expr, $s:expr) => {
         match $r {
             Ok(r) => r,
@@ -26,6 +26,10 @@ macro_rules! unwrap_or_return {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! unwrap_or_return_option {
     ($o:expr, $s:expr) => {
         match $o {
             Some(r) => r,
