@@ -1,3 +1,3 @@
 [submodule "packages/rocket_seek_stream"]
 	path = packages/rocket_seek_stream
-	url = https://github.com/StappsWorld/download_service
+	url = https://github.com/StappsWorld/rocket_seek_stream
