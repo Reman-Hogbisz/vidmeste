@@ -35,7 +35,7 @@ fn generate_oauth_client<T: ToString>(
         StandardErrorResponse<RevocationErrorResponseType>,
     >,
 > {
-    let mut client = BasicClient::new(
+    let client = BasicClient::new(
         ClientId::new(client_id.to_string()),
         Some(ClientSecret::new(client_secret.to_string())),
         unwrap_or_return_option!(AuthUrl::new(auth_url.to_string()).ok(), "Invalid auth URL."),
@@ -65,14 +65,17 @@ fn generate_oauth_redirect<T: ToString>(
     revocation_url: T,
     scopes: Vec<T>,
 ) -> Option<String> {
-    let client = unwrap_or_return_option!(generate_oauth_client(
-        client_id,
-        client_secret,
-        auth_url,
-        token_url,
-        redirect_url,
-        revocation_url,
-    ));
+    let client = unwrap_or_return_option!(
+        generate_oauth_client(
+            client_id,
+            client_secret,
+            auth_url,
+            token_url,
+            redirect_url,
+            revocation_url,
+        ),
+        "Failed to create client."
+    );
     let mut auth_request = client.authorize_url(CsrfToken::new_random);
     for scope in scopes {
         auth_request = auth_request.add_scope(Scope::new(scope.to_string()));
@@ -97,7 +100,7 @@ pub async fn google_login() -> Redirect {
             vec!["https://www.googleapis.com/auth/userinfo.email".to_string()],
         ) {
             Some(url) => url,
-            None => return Redirect::to("."),
+            None => "/login".to_string(),
         },
     )
 }
@@ -105,12 +108,8 @@ pub async fn google_login() -> Redirect {
 #[get("/auth/google?<state>&<code>")]
 #[allow(unused_variables)] // Rocket doesn't like unused variables naming scheme '_state'
 pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_>) -> Redirect {
-    cookies.add_private(
-        Cookie::build("token", code.clone())
-            .same_site(SameSite::Lax)
-            .finish(),
-    );
-    let client = generate_oauth_client(
+    let failure_redirect = Redirect::to("/login");
+    let client = match generate_oauth_client(
         env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
         env::var("GOOGLE_CLIENT_SECRET")
             .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
@@ -118,7 +117,10 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
         "https://www.googleapis.com/oauth2/v3/token".to_string(),
         env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/google",
         "https://oauth2.googleapis.com/revoke".to_string(),
-    );
+    ) {
+        Some(client) => client,
+        None => return failure_redirect,
+    };
     let access_token = match client
         .exchange_code(AuthorizationCode::new(code))
         .request_async(oauth2::reqwest::async_http_client)
@@ -127,9 +129,14 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
         Ok(token_response) => token_response.access_token().clone(),
         Err(e) => {
             error!("Error exchanging code for token: {}", e);
-            return Redirect::to("/");
+            return failure_redirect;
         }
     };
+    cookies.add_private(
+        Cookie::build("token", access_token.secret().to_owned())
+            .same_site(SameSite::Lax)
+            .finish(),
+    );
 
     let client = reqwest::Client::new();
     match client
@@ -159,7 +166,7 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
                     }
                     Err(e) => {
                         warn!("Error converting response to json: {}", e);
-                        return Redirect::to("/");
+                        return failure_redirect;
                     }
                 }
 
@@ -172,7 +179,7 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
                         Some(user) => user,
                         None => {
                             warn!("Failed to insert new user {}", email);
-                            return Redirect::to("/");
+                            return failure_redirect;
                         }
                     }
                 };
@@ -185,7 +192,7 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
             } else {
                 warn!("Failed to get google response: {:?}", response);
                 warn!("{}", response.text().await.unwrap_or("".to_string()));
-                return Redirect::to("/");
+                return failure_redirect;
             }
         }
         Err(e) => warn!("Failed to send google oauth2 request with error: {}", e),
@@ -195,37 +202,85 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
 }
 
 #[get("/login/discord")]
-pub async fn discord_login(oauth2: OAuth2<Discord>, cookies: &CookieJar<'_>) -> Redirect {
-    oauth2
-        .get_redirect(cookies, &["identify", "email"])
-        .unwrap()
+pub async fn discord_login() -> Redirect {
+    Redirect::to(
+        match generate_oauth_redirect(
+            env::var("DISCORD_CLIENT_ID")
+                .expect("Missing the DISCORD_CLIENT_ID environment variable."),
+            env::var("DISCORD_CLIENT_SECRET")
+                .expect("Missing the DISCORD_CLIENT_SECRET environment variable."),
+            "https://discordapp.com/api/oauth2/authorize".to_string(),
+            "https://discordapp.com/api/oauth2/token".to_string(),
+            env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
+                + "/auth/discord",
+            "https://discordapp.com/api/oauth2/token/revoke".to_string(),
+            vec!["identify".to_string(), "email".to_string()],
+        ) {
+            Some(url) => url,
+            None => String::from("/login"),
+        },
+    )
 }
 
-#[get("/auth/discord")]
-pub async fn discord_callback(
-    token: rocket_oauth2::TokenResponse<Discord>,
-    cookies: &CookieJar<'_>,
-) -> Redirect {
+#[get("/auth/discord?<code>")]
+pub async fn discord_callback(code: String, cookies: &CookieJar<'_>) -> Redirect {
+    info!("Got discord callback with code: {}", code);
+    let failure_redirect = Redirect::to("/login");
+    let client = match generate_oauth_client(
+        env::var("DISCORD_CLIENT_ID").expect("Missing the DISCORD_CLIENT_ID environment variable."),
+        env::var("DISCORD_CLIENT_SECRET")
+            .expect("Missing the DISCORD_CLIENT_SECRET environment variable."),
+        "https://discordapp.com/api/oauth2/authorize".to_string(),
+        "https://discordapp.com/api/oauth2/token".to_string(),
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/discord",
+        "https://discordapp.com/api/oauth2/token/revoke".to_string(),
+    ) {
+        Some(client) => client,
+        None => return failure_redirect,
+    };
+    let access_token = match client
+        .exchange_code(AuthorizationCode::new(code))
+        .request_async(oauth2::reqwest::async_http_client)
+        .await
+    {
+        Ok(token_response) => token_response.access_token().clone(),
+        Err(e) => {
+            error!("Error exchanging code for token: {}", e);
+            return failure_redirect;
+        }
+    };
     cookies.add_private(
-        Cookie::build("token", token.access_token().to_string())
+        Cookie::build("token", access_token.secret().to_owned())
             .same_site(SameSite::Lax)
             .finish(),
     );
-    match reqwest::get(&format!(
-        "https://discordapp.com/api/users/@me?access_token={}",
-        token.access_token()
-    ))
-    .await
+
+    let client = reqwest::Client::new();
+    match client
+        .get("https://discordapp.com/api/users/@me")
+        .header(
+            "Authorization",
+            format!("{} {}", "Bearer", access_token.secret()),
+        )
+        .send()
+        .await
     {
         Ok(response) => {
             let body = response.text().await.unwrap();
-            let email = body
-                .split("\"email\":")
-                .nth(1)
-                .unwrap()
-                .split(",")
-                .next()
-                .unwrap();
+            info!("Got discord response: {}", body);
+            let email = match body.split("\"email\":").nth(1) {
+                Some(email) => email,
+                None => {
+                    warn!("Failed to get email from discord response: {}", body);
+                    return failure_redirect;
+                }
+            }
+            .split(",")
+            .next()
+            .unwrap()
+            .replace("\"", "")
+            .replace(" ", "");
+            info!("Got email: {}", email);
             let user = if let Some(user) = get_user_by_email(email.to_owned()) {
                 user
             } else {
@@ -233,17 +288,21 @@ pub async fn discord_callback(
                     Some(user) => user,
                     None => {
                         warn!("Failed to insert new user {}", email);
-                        return Redirect::to("/");
+                        return failure_redirect;
                     }
                 }
             };
+            info!("Got user {:?}", user);
             cookies.add(
                 Cookie::build("user_id", user.user_id.clone())
                     .same_site(SameSite::Lax)
                     .finish(),
             );
         }
-        Err(e) => warn!("{}", e),
+        Err(e) => {
+            warn!("Failed to get discord api response! Error: {}", e);
+            return failure_redirect;
+        }
     }
     Redirect::to("/")
 }
