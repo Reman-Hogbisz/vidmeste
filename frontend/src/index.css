@@ -2,14 +2,14 @@
     font-family: "Archive";
     src: url("@/assets/fonts/Archive.otf") format("opentype");
 }
-/* @font-face {
+@font-face {
     font-family: "Zag";
     src: url("@/assets/fonts/Zag Regular.otf") format("opentype");
 }
 @font-face {
     font-family: "Zag Bold";
     src: url("@/assets/fonts/Zag Bold.otf") format("opentype");
-} */
+}
 
 @tailwind base;
 @tailwind components;

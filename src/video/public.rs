@@ -1,3 +1,5 @@
+use sanitize_html::rules::predefined::DEFAULT;
+use sanitize_html::sanitize_str;
 use std::path::PathBuf;
 
 use crate::{
@@ -17,12 +19,18 @@ pub async fn get_video<'a>(id: String) -> Option<SeekStream<'a>> {
     SeekStream::from_path(video_path).ok()
 }
 
-#[post("/add", data = "<video>")]
-pub async fn add_video(video: Data<'_>) -> Status {
+#[post("/add?<name>&<user_id>", data = "<video>")]
+pub async fn add_video(name: String, user_id: i32, video: Data<'_>) -> Status {
     // TODO : Implement authentication and put video in user folder
-    // let connection = create_connection().expect("Failed to connect to database");
+    let name_sanitized = match sanitize_str(&DEFAULT, &name) {
+        Ok(name_sanitized) => name_sanitized.replace("..", "").replace(".", "_"),
+        Err(e) => {
+            warn!("Failed to sanitize name {} with error: {}", name, e);
+            return Status::InternalServerError;
+        }
+    };
     let video_file_stream = video.open(512i64.mebibytes());
-    let file_path = format!("videos/{}.mp4", "test");
+    let file_path = format!("videos/{}/{}.mp4", user_id, name);
     let file_path_buf = PathBuf::from(file_path.clone());
     let file_out = match rocket::tokio::fs::File::create(file_path_buf.clone()).await {
         Ok(file_out) => file_out,
@@ -41,7 +49,7 @@ pub async fn add_video(video: Data<'_>) -> Status {
                 owner_id: 1,
                 video_id: generate_new_video_id(),
                 video_path: file_path.clone(),
-                video_name: "test.mp4".to_owned(),
+                video_name: name_sanitized + ".mp4",
                 // TODO : Optimize
                 video_length: match ffprobe::ffprobe(&file_path) {
                     Ok(probe) => {

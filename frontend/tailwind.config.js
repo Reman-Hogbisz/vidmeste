@@ -17,6 +17,7 @@ module.exports = {
         fontFamily: {
             archive: ["Archive", "sans-serif"],
             zag: ["Zag", "sans-serif"],
+            zagbold: ["Zag Bold", "sans-serif"],
         },
         plugins: [],
     },

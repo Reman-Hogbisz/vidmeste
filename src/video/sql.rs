@@ -2,9 +2,8 @@ extern crate diesel;
 
 use std::path::PathBuf;
 
-use crate::{create_connection, models::*};
+use crate::{create_connection, models::*, util::make_random_string};
 use diesel::prelude::*;
-use rand::Rng;
 
 pub fn get_video_by_id(id: &String) -> Option<PathBuf> {
     let connection = create_connection().expect("Failed to connect to database");
@@ -59,17 +58,4 @@ pub fn generate_new_video_id() -> String {
         video_id = make_random_string(32);
     }
     video_id
-}
-
-fn make_random_string(length: usize) -> String {
-    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                            abcdefghijklmnopqrstuvwxyz\
-                            0123456789)(*&^%$#@!~";
-    let mut thread_rng = rand::thread_rng();
-    (0..length)
-        .map(|_| {
-            let idx = thread_rng.gen_range(0..CHARSET.len());
-            CHARSET[idx] as char
-        })
-        .collect()
 }

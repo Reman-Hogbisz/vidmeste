@@ -1,23 +1,24 @@
 <template>
     <div
-        class="min-h-screen bg-center bg-no-repeat bg-cover bl font-zag"
+        class="block min-h-screen bg-center bg-no-repeat bg-cover bl"
         style="
-            background-image: url('https://images.unsplash.com/photo-1651467987631-1bcd570b9f7f?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=627&q=80');
+            background-image: url('https://images.unsplash.com/photo-1548276145-69a9521f0499?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1754&q=80`);
         ">
         <div class="flex justify-end">
             <div
-                class="flex flex-col items-center justify-center w-1/2 min-h-screen bg-rh-blue">
+                class="flex flex-col items-center justify-center w-full min-h-screen md:w-1/2 bg-rh-blue">
                 <div class="relative w-2/3">
                     <div
                         class="relative flex flex-col w-full px-6 py-4 shadow-md bg-rh-white rounded-3xl">
                         <label
-                            class="block my-3 text-6xl text-center text-gray-700 font-archive">
+                            class="block my-3 text-3xl text-center text-gray-700 md:text-4xl lg:text-6xl 2xl:text-8xl font-archive">
                             <span class="text-rh-green">VID</span
                             ><span class="text-rh-lightblue">MESTE</span>
                         </label>
                         <button
+                            v-on:click="gotoURL('/login/hogbisz')"
                             type="button"
-                            class="text-white bg-rh-green hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
+                            class="xl:text-xl text-white bg-rh-green hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
                             <svg
                                 class="w-4 h-4 mr-2 -ml-1"
                                 xmlns="http://www.w3.org/2000/svg"
@@ -74,12 +75,12 @@
                                         fill-rule="nonzero" />
                                 </g>
                             </svg>
-
                             Sign in with Hogbisz
                         </button>
                         <button
+                            v-on:click="gotoURL('/login/github')"
                             type="button"
-                            class="text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 mr-2 mb-2">
+                            class="xl:text-xl text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 mr-2 mb-2">
                             <svg
                                 class="w-4 h-4 mr-2 -ml-1"
                                 aria-hidden="true"
@@ -96,8 +97,9 @@
                             Sign in with Github
                         </button>
                         <button
+                            v-on:click="gotoURL('/login/google')"
                             type="button"
-                            class="text-white bg-[#4285F4] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
+                            class="xl:text-xl text-white bg-[#4285F4] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
                             <svg
                                 class="w-4 h-4 mr-2 -ml-1"
                                 aria-hidden="true"
@@ -114,8 +116,9 @@
                             Sign in with Google
                         </button>
                         <button
+                            v-on:click="gotoURL('/login/discord')"
                             type="button"
-                            class="text-white bg-[#5865F2] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
+                            class="xl:text-xl text-white bg-[#5865F2] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
                             <svg
                                 class="w-4 h-4 mr-2 -ml-1"
                                 viewBox="0 0 71 55"
@@ -148,6 +151,13 @@
 <script>
 export default {
     name: "Login-Page",
+    methods: {
+        gotoURL: function (url) {
+            const currentLocation = new URL(window.location);
+            history.pushState({}, "", currentLocation);
+            window.location.replace(url);
+        },
+    },
 };
 </script>
 

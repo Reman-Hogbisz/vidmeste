@@ -1,12 +1,14 @@
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    email TEXT NOT NULL
+    user_id TEXT UNIQUE NOT NULL,
+    email TEXT NOT NULL,
+    displayname TEXT NOT NULL
 );
 
 CREATE TABLE videos (
     id SERIAL PRIMARY KEY,
     video_id TEXT NOT NULL,
-    video_path TEXT NOT NULL,
+    video_path TEXT UNIQUE NOT NULL,
     video_name TEXT NOT NULL,
     video_length INTEGER NOT NULL,
     video_desc TEXT NOT NULL,
@@ -22,4 +24,4 @@ CREATE TABLE one_time_video (
 );
 
 
-INSERT INTO users (email) VALUES ('hogbisz@gmail.com');
+INSERT INTO users (email, user_id, displayname) VALUES ('hogbisz@gmail.com', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hogbisz');

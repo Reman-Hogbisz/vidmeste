@@ -1,20 +1,23 @@
 extern crate diesel;
 
 use crate::schema::*;
-use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
 #[table_name = "users"]
 pub struct User {
     pub id: i32,
+    pub user_id: String,
     pub email: String,
+    pub displayname: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Insertable)]
 #[table_name = "users"]
 pub struct UserNoId {
+    pub user_id: String,
     pub email: String,
+    pub displayname: String,
 }
 
 #[derive(Identifiable, Queryable, Associations, Debug, Serialize, Deserialize)]

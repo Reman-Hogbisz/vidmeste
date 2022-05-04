@@ -10,7 +10,9 @@ table! {
 table! {
     users (id) {
         id -> Int4,
+        user_id -> Text,
         email -> Text,
+        displayname -> Text,
     }
 }
 
