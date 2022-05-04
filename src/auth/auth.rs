@@ -25,13 +25,15 @@ fn generate_oauth_client<T: ToString>(
     token_url: T,
     redirect_url: T,
     revocation_url: T,
-) -> Client<
-    StandardErrorResponse<BasicErrorResponseType>,
-    StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
-    BasicTokenType,
-    StandardTokenIntrospectionResponse<EmptyExtraTokenFields, BasicTokenType>,
-    StandardRevocableToken,
-    StandardErrorResponse<RevocationErrorResponseType>,
+) -> Option<
+    Client<
+        StandardErrorResponse<BasicErrorResponseType>,
+        StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
+        BasicTokenType,
+        StandardTokenIntrospectionResponse<EmptyExtraTokenFields, BasicTokenType>,
+        StandardRevocableToken,
+        StandardErrorResponse<RevocationErrorResponseType>,
+    >,
 > {
     let mut client = BasicClient::new(
         ClientId::new(client_id.to_string()),
@@ -51,7 +53,7 @@ fn generate_oauth_client<T: ToString>(
             RevocationUrl::new(revocation_url.to_string()).ok(),
             "Invalid revocation URL."
         ));
-    client
+    Some(client)
 }
 
 fn generate_oauth_redirect<T: ToString>(
@@ -63,14 +65,14 @@ fn generate_oauth_redirect<T: ToString>(
     revocation_url: T,
     scopes: Vec<T>,
 ) -> Option<String> {
-    let client = generate_oauth_client(
+    let client = unwrap_or_return_option!(generate_oauth_client(
         client_id,
         client_secret,
         auth_url,
         token_url,
         redirect_url,
         revocation_url,
-    );
+    ));
     let mut auth_request = client.authorize_url(CsrfToken::new_random);
     for scope in scopes {
         auth_request = auth_request.add_scope(Scope::new(scope.to_string()));
