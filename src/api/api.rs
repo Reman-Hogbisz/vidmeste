@@ -20,7 +20,7 @@ pub async fn get_all_users(cookies: &CookieJar<'_>) -> Json<String> {
     }
 
     match dump_user_table() {
-        Some(users) => make_json_response!(200, users),
+        Some(users) => make_json_response!(200, "OK", users),
         None => make_json_response!(500, "Failed to dump table"),
     }
 }
@@ -41,7 +41,7 @@ pub async fn get_user_by_id(id: i32, cookies: &CookieJar<'_>) -> Json<String> {
     }
 
     match sql::get_user_by_id(id) {
-        Some(user) => make_json_response!(200, user),
+        Some(user) => make_json_response!(200, "OK", user),
         None => make_json_response!(404, "User not found"),
     }
 }
@@ -65,7 +65,7 @@ pub async fn get_all_videos(cookies: &CookieJar<'_>) -> Json<String> {
     }
 
     match crate::api::sql::get_all_videos() {
-        Some(videos) => make_json_response!(200, videos),
+        Some(videos) => make_json_response!(200, "OK", videos),
         None => make_json_response!(500, "Failed to load videos"),
     }
 }
@@ -97,7 +97,7 @@ pub async fn get_video_with_id(id: String, cookies: &CookieJar<'_>) -> Json<Stri
                 );
                 return make_json_response!(403, "Forbidden");
             }
-            make_json_response!(200, v)
+            make_json_response!(200, "OK", v)
         }
         None => make_json_response!(404, "Video not found"),
     }

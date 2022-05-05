@@ -5,13 +5,13 @@ use std::path::PathBuf;
 use crate::{create_connection, models::*, util::make_random_string};
 use diesel::prelude::*;
 
-pub fn get_video_by_id(id: &String) -> Option<PathBuf> {
+pub fn get_video_by_id(id: &String) -> Option<Video> {
     let connection = create_connection().expect("Failed to connect to database");
     match crate::schema::videos::table
         .filter(crate::schema::videos::dsl::video_id.eq(id.to_owned()))
         .first::<Video>(&connection)
     {
-        Ok(video) => Some(PathBuf::from(video.video_path)),
+        Ok(video) => Some(video),
         Err(e) => {
             info!(
                 "Failed to get video with id : {} (error {})",

@@ -72,6 +72,7 @@ async fn main() {
                 crate::api::api::get_user_by_id,
                 crate::api::api::get_all_videos,
                 crate::api::api::get_video_with_id,
+                crate::auth::auth::me,
             ],
         )
         .mount(

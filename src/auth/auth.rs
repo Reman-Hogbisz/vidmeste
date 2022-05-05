@@ -1,8 +1,6 @@
-use crate::auth::sql::get_user_by_user_id;
-use crate::models::User;
-use crate::unwrap_or_return_option;
-
 use super::sql::{get_user_by_email, insert_user};
+use crate::auth::sql::get_user_by_user_id;
+use crate::{make_json_response, unwrap_or_return_option};
 use oauth2::basic::{BasicClient, BasicErrorResponseType, BasicTokenType};
 use oauth2::{
     AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, EmptyExtraTokenFields,
@@ -11,9 +9,11 @@ use oauth2::{
     TokenResponse, TokenUrl,
 };
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
+use rocket::response::content::Json;
 use rocket::response::Redirect;
 use rocket_oauth2::OAuth2;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::env;
 
 pub struct Hogbisz;
@@ -341,16 +341,17 @@ pub async fn create_user(email: String) -> Status {
     }
 }
 
-pub async fn me(cookies: CookieJar<'_>) -> Result<User, Status> {
+#[get("/auth/me")]
+pub async fn me(cookies: &CookieJar<'_>) -> Json<String> {
     let user_id = match cookies.get("user_id") {
         Some(cookie) => cookie.value().to_string(),
         None => {
             info!("No user_id cookie found");
-            return Err(Status::Unauthorized);
+            return make_json_response!(401, "Unauthorized");
         }
     };
     match get_user_by_user_id(&user_id) {
-        Some(user) => Ok(user),
-        None => Err(Status::InternalServerError),
+        Some(user) => make_json_response!(200, "OK", user),
+        None => make_json_response!(500, "Internal Server Error"),
     }
 }
