@@ -69,9 +69,7 @@ impl Fairing for CORS {
 }
 
 pub fn make_random_string(length: usize) -> String {
-    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                            abcdefghijklmnopqrstuvwxyz\
-                            0123456789)(*&^%$#@!~";
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let mut thread_rng = rand::thread_rng();
     (0..length)
         .map(|_| {

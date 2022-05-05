@@ -1,8 +1,17 @@
+
+CREATE TABLE user_permissions (
+  id SERIAL PRIMARY KEY,
+  permission VARCHAR(255) NOT NULL
+);
+
+INSERT INTO user_permissions (permission) VALUES ('admin');
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     user_id TEXT UNIQUE NOT NULL,
     email TEXT NOT NULL,
-    displayname TEXT NOT NULL
+    displayname TEXT NOT NULL,
+    permissions INTEGER[] NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE videos (
@@ -24,4 +33,6 @@ CREATE TABLE one_time_video (
 );
 
 
-INSERT INTO users (email, user_id, displayname) VALUES ('hogbisz@gmail.com', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hogbisz');
+INSERT INTO users (email, user_id, displayname, permissions) VALUES ('hogbisz@gmail.com', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hogbisz', '{1}');
+INSERT INTO users (email, user_id, displayname, permissions) VALUES ('sjrembisz07@gmail.com', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab', 'Samuel Rembisz', '{1}');
+INSERT INTO users (email, user_id, displayname, permissions) VALUES ('tehcakecore@gmail.com', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaac', 'Samuel Rembisz', '{}');

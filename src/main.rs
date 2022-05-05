@@ -83,7 +83,6 @@ async fn main() {
         )
         .attach(crate::util::CORS)
         .attach(OAuth2::<crate::auth::auth::Hogbisz>::fairing("hogbisz"))
-        .attach(OAuth2::<crate::auth::auth::Discord>::fairing("discord"))
         .launch()
         .await
     {

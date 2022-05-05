@@ -1,73 +1,104 @@
-use crate::{
-    create_connection, make_json_response,
-    models::{User, Video},
-};
-use diesel::prelude::*;
+use crate::auth::{sql, util};
+use crate::{auth::sql::dump_user_table, make_json_response};
+use rocket::http::CookieJar;
 use rocket::response::content::Json;
 use serde_json::json;
 
 #[get("/users")]
-pub async fn get_all_users() -> Json<String> {
-    // TODO : Add authentication
-    let connection = create_connection().expect("Failed to connect to database");
-    let users = match crate::schema::users::table.load::<User>(&connection) {
-        Ok(users) => users,
-        Err(e) => {
-            warn!("Failed to get users (error {})", e);
-            return make_json_response!(500, format!("Failed to load users with error {}", e));
+pub async fn get_all_users(cookies: &CookieJar<'_>) -> Json<String> {
+    let user_id = match cookies.get("user_id") {
+        Some(user_id) => user_id.value().to_string(),
+        None => {
+            info!("Failed to get user_id from cookies");
+            return make_json_response!(401, "Unauthorized");
         }
     };
-    make_json_response!(200, users)
+
+    if !util::user_is_admin(&user_id) {
+        info!("User {} does not have permission to get all users", user_id);
+        return make_json_response!(403, "Forbidden");
+    }
+
+    match dump_user_table() {
+        Some(users) => make_json_response!(200, users),
+        None => make_json_response!(500, "Failed to dump table"),
+    }
 }
 
 #[get("/users?<id>")]
-pub async fn get_user_by_id(id: i32) -> Json<String> {
-    // TODO : Add authentication
-    let connection = create_connection().expect("Failed to connect to database");
-    let user = match crate::schema::users::table
-        .filter(crate::schema::users::dsl::id.eq(id))
-        .first::<User>(&connection)
-    {
-        Ok(user) => user,
-        Err(e) => {
-            warn!("Failed to get user with id : {} (error {})", id, e);
-            return make_json_response!(
-                500,
-                format!("Failed to load user with id {} and error {}", id, e)
-            );
+pub async fn get_user_by_id(id: i32, cookies: &CookieJar<'_>) -> Json<String> {
+    let user_id = match cookies.get("user_id") {
+        Some(user_id) => user_id.value().to_string(),
+        None => {
+            info!("Failed to get user_id from cookies");
+            return make_json_response!(401, "Unauthorized");
         }
     };
-    make_json_response!(200, user)
+
+    if !util::user_is_admin(&user_id) {
+        info!("User {} does not have permission to get all users", user_id);
+        return make_json_response!(403, "Forbidden");
+    }
+
+    match sql::get_user_by_id(id) {
+        Some(user) => make_json_response!(200, user),
+        None => make_json_response!(404, "User not found"),
+    }
 }
 
 #[get("/videos")]
-pub async fn get_all_videos() -> Json<String> {
-    // TODO : Add authentication
-    let connection = create_connection().expect("Failed to connect to database");
-    let videos = match crate::schema::videos::table.load::<Video>(&connection) {
-        Ok(videos) => videos,
-        Err(e) => {
-            warn!("Failed to get videos (error {})", e);
-            return make_json_response!(500, format!("Failed to load videos with error {}", e));
+pub async fn get_all_videos(cookies: &CookieJar<'_>) -> Json<String> {
+    let user_id = match cookies.get("user_id") {
+        Some(user_id) => user_id.value().to_string(),
+        None => {
+            info!("Failed to get user_id from cookies");
+            return make_json_response!(401, "Unauthorized");
         }
     };
-    make_json_response!(200, videos)
+
+    if !util::user_is_admin(&user_id) {
+        info!(
+            "User {} does not have permission to get all videos",
+            user_id
+        );
+        return make_json_response!(403, "Forbidden");
+    }
+
+    match crate::api::sql::get_all_videos() {
+        Some(videos) => make_json_response!(200, videos),
+        None => make_json_response!(500, "Failed to load videos"),
+    }
 }
 
 #[get("/videos?<id>")]
-pub async fn get_video_with_id(id: String) -> Json<String> {
-    // TODO : Add authentication
-    let connection = create_connection().expect("Failed to connect to database");
-    let video = match crate::schema::videos::table
-        .filter(crate::schema::videos::dsl::video_id.eq(id.clone()))
-        .get_results::<Video>(&connection)
-    {
-        Ok(video) => video,
-        Err(e) => {
-            let error = format!("Failed to get video with id : {} (error {})", id, e);
-            warn!("{}", error);
-            return make_json_response!(500, error);
+pub async fn get_video_with_id(id: String, cookies: &CookieJar<'_>) -> Json<String> {
+    let user_id = match cookies.get("user_id") {
+        Some(user_id) => user_id.value().to_string(),
+        None => {
+            info!("Failed to get user_id from cookies");
+            return make_json_response!(401, "Unauthorized");
         }
     };
-    make_json_response!(200, video)
+
+    let user = match sql::get_user_by_user_id(&user_id) {
+        Some(user) => user,
+        None => {
+            info!("Failed to get user with user_id {}", user_id);
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+
+    match crate::api::sql::get_video_with_id(&id) {
+        Some(v) => {
+            if v.owner_id != user.id && !util::user_is_admin(user) {
+                info!(
+                    "User {} does not have permission to view video {}",
+                    user_id, id
+                );
+                return make_json_response!(403, "Forbidden");
+            }
+            make_json_response!(200, v)
+        }
+        None => make_json_response!(404, "Video not found"),
+    }
 }

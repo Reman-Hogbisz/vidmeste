@@ -3,13 +3,51 @@ extern crate diesel;
 use crate::schema::*;
 use serde::{Deserialize, Serialize};
 
-#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Queryable, Identifiable, Debug)]
+#[table_name = "user_permissions"]
+pub struct UserPermissions {
+    pub id: i32,
+    pub permission: String,
+}
+
+#[derive(Identifiable, Queryable, Serialize, Deserialize, Debug, Default)]
 #[table_name = "users"]
 pub struct User {
     pub id: i32,
     pub user_id: String,
     pub email: String,
     pub displayname: String,
+    pub permissions: Vec<i32>,
+}
+impl TryFrom<&String> for User {
+    type Error = ();
+    fn try_from(user_id: &String) -> Result<Self, ()> {
+        match crate::auth::sql::get_user_by_user_id(user_id) {
+            Some(user) => Ok(user),
+            None => {
+                info!(
+                    "Failed to get user with user_id {} when converting from string",
+                    user_id
+                );
+                Err(())
+            }
+        }
+    }
+}
+impl TryFrom<i32> for User {
+    type Error = ();
+    fn try_from(user_id: i32) -> Result<Self, ()> {
+        match crate::auth::sql::get_user_by_id(user_id) {
+            Some(user) => Ok(user),
+            None => {
+                info!(
+                    "Failed to get user with id {} when converting from i32",
+                    user_id
+                );
+                Err(())
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Insertable)]

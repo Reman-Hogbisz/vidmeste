@@ -1,3 +1,5 @@
+use crate::auth::sql::get_user_by_user_id;
+use crate::models::User;
 use crate::unwrap_or_return_option;
 
 use super::sql::{get_user_by_email, insert_user};
@@ -14,9 +16,7 @@ use rocket_oauth2::OAuth2;
 use serde::{Deserialize, Serialize};
 use std::env;
 
-pub struct Google;
 pub struct Hogbisz;
-pub struct Discord;
 
 fn generate_oauth_client<T: ToString>(
     client_id: T,
@@ -338,5 +338,19 @@ pub async fn create_user(email: String) -> Status {
             info!("Failed to create user");
             Status::InternalServerError
         }
+    }
+}
+
+pub async fn me(cookies: CookieJar<'_>) -> Result<User, Status> {
+    let user_id = match cookies.get("user_id") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("No user_id cookie found");
+            return Err(Status::Unauthorized);
+        }
+    };
+    match get_user_by_user_id(&user_id) {
+        Some(user) => Ok(user),
+        None => Err(Status::InternalServerError),
     }
 }

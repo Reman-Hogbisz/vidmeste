@@ -8,11 +8,19 @@ table! {
 }
 
 table! {
+    user_permissions (id) {
+        id -> Int4,
+        permission -> Varchar,
+    }
+}
+
+table! {
     users (id) {
         id -> Int4,
         user_id -> Text,
         email -> Text,
         displayname -> Text,
+        permissions -> Array<Int4>,
     }
 }
 
@@ -34,6 +42,7 @@ joinable!(videos -> users (owner_id));
 
 allow_tables_to_appear_in_same_query!(
     one_time_video,
+    user_permissions,
     users,
     videos,
 );
