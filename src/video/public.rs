@@ -1,15 +1,17 @@
-use sanitize_html::rules::predefined::DEFAULT;
-use sanitize_html::sanitize_str;
-use std::path::PathBuf;
-
 use crate::{
     models::VideoNoId,
     unwrap_or_return_option,
     video::sql::{generate_new_video_id, get_video_by_id, insert_new_video},
 };
-use rocket::data::{Data, ToByteUnit};
 use rocket::http::Status;
+use rocket::{
+    data::{Data, ToByteUnit},
+    http::CookieJar,
+};
 use rocket_seek_stream::SeekStream;
+use sanitize_html::rules::predefined::DEFAULT;
+use sanitize_html::sanitize_str;
+use std::path::PathBuf;
 
 #[get("/get?<id>")]
 pub async fn get_video<'a>(id: String) -> Option<SeekStream<'a>> {
@@ -19,9 +21,8 @@ pub async fn get_video<'a>(id: String) -> Option<SeekStream<'a>> {
     SeekStream::from_path(video_path).ok()
 }
 
-#[post("/add?<name>&<user_id>", data = "<video>")]
-pub async fn add_video(name: String, user_id: i32, video: Data<'_>) -> Status {
-    // TODO : Implement authentication and put video in user folder
+#[post("/add?<name>", data = "<video>")]
+pub async fn add_video(name: String, video: Data<'_>, cookies: &CookieJar<'_>) -> Status {
     let name_sanitized = match sanitize_str(&DEFAULT, &name) {
         Ok(name_sanitized) => name_sanitized.replace("..", "").replace(".", "_"),
         Err(e) => {
