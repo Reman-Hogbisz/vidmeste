@@ -12,8 +12,11 @@ Cargo.lock
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
+
+# Added by us
 frontend/node_modules/
 frontend/dist/
 static/
 Rocket.toml
 /videos
+.env
