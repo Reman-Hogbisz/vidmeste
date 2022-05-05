@@ -150,7 +150,7 @@
 
 <script>
 export default {
-    name: "Login-Page",
+    name: "LoginPage",
     methods: {
         gotoURL: function (url) {
             const currentLocation = new URL(window.location);
