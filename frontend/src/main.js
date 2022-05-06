@@ -15,6 +15,12 @@ const routes = [
         name: "Login",
         component: () => import("@/pages/Login.vue"),
     },
+    // Error Pages
+    {
+        path: "/404",
+        name: "404",
+        component: () => import("@/pages/errors/404.vue"),
+    },
 ];
 
 const router = createRouter({
