@@ -1,12 +1,14 @@
 use super::sql::{get_user_by_email, insert_user};
+use super::util::oauth_token_is_valid;
 use crate::auth::sql::get_user_by_user_id;
 use crate::{make_json_response, unwrap_or_return_option};
 use oauth2::basic::{BasicClient, BasicErrorResponseType, BasicTokenType};
+use oauth2::reqwest::async_http_client;
 use oauth2::{
-    AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken, EmptyExtraTokenFields,
-    RedirectUrl, RevocationErrorResponseType, RevocationUrl, Scope, StandardErrorResponse,
-    StandardRevocableToken, StandardTokenIntrospectionResponse, StandardTokenResponse,
-    TokenResponse, TokenUrl,
+    AccessToken, AuthUrl, AuthorizationCode, Client, ClientId, ClientSecret, CsrfToken,
+    EmptyExtraTokenFields, RedirectUrl, RevocationErrorResponseType, RevocationUrl, Scope,
+    StandardErrorResponse, StandardRevocableToken, StandardTokenIntrospectionResponse,
+    StandardTokenResponse, TokenResponse, TokenUrl,
 };
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
 use rocket::response::content::Json;
@@ -15,6 +17,15 @@ use rocket_oauth2::OAuth2;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::env;
+
+pub type OAuth2Client = Client<
+    StandardErrorResponse<BasicErrorResponseType>,
+    StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
+    BasicTokenType,
+    StandardTokenIntrospectionResponse<EmptyExtraTokenFields, BasicTokenType>,
+    StandardRevocableToken,
+    StandardErrorResponse<RevocationErrorResponseType>,
+>;
 
 pub struct Hogbisz;
 
@@ -25,16 +36,7 @@ fn generate_oauth_client<T: ToString>(
     token_url: T,
     redirect_url: T,
     revocation_url: T,
-) -> Option<
-    Client<
-        StandardErrorResponse<BasicErrorResponseType>,
-        StandardTokenResponse<EmptyExtraTokenFields, BasicTokenType>,
-        BasicTokenType,
-        StandardTokenIntrospectionResponse<EmptyExtraTokenFields, BasicTokenType>,
-        StandardRevocableToken,
-        StandardErrorResponse<RevocationErrorResponseType>,
-    >,
-> {
+) -> Option<OAuth2Client> {
     let client = BasicClient::new(
         ClientId::new(client_id.to_string()),
         Some(ClientSecret::new(client_secret.to_string())),
@@ -84,6 +86,42 @@ fn generate_oauth_redirect<T: ToString>(
     Some(authorize_url.to_string())
 }
 
+async fn revoke_oauth<T: ToString>(
+    token: AccessToken,
+    client_id: T,
+    client_secret: T,
+    auth_url: T,
+    token_url: T,
+    redirect_url: T,
+    revocation_url: T,
+) -> bool {
+    let client = match generate_oauth_client(
+        client_id,
+        client_secret,
+        auth_url,
+        token_url,
+        redirect_url,
+        revocation_url,
+    ) {
+        Some(client) => client,
+        None => return false,
+    };
+
+    match client.revoke_token(token.into()) {
+        Ok(c) => match c.request_async(async_http_client).await {
+            Ok(_) => true,
+            Err(e) => {
+                warn!("Failed to revoke client with error {}", e);
+                false
+            }
+        },
+        Err(e) => {
+            warn!("Failed to revoke client with error {}", e);
+            false
+        }
+    }
+}
+
 #[get("/login/google")]
 pub async fn google_login() -> Redirect {
     Redirect::to(
@@ -121,22 +159,18 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
         Some(client) => client,
         None => return failure_redirect,
     };
-    let access_token = match client
+    let token_response = match client
         .exchange_code(AuthorizationCode::new(code))
         .request_async(oauth2::reqwest::async_http_client)
         .await
     {
-        Ok(token_response) => token_response.access_token().clone(),
+        Ok(token_response) => token_response,
         Err(e) => {
             error!("Error exchanging code for token: {}", e);
             return failure_redirect;
         }
     };
-    cookies.add_private(
-        Cookie::build("token", access_token.secret().to_owned())
-            .same_site(SameSite::Lax)
-            .finish(),
-    );
+    let access_token = token_response.access_token();
 
     let client = reqwest::Client::new();
     match client
@@ -197,8 +231,31 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
         }
         Err(e) => warn!("Failed to send google oauth2 request with error: {}", e),
     }
-
+    cookies.add(
+        Cookie::build("oauth", "google".to_string())
+            .same_site(SameSite::Lax)
+            .finish(),
+    );
+    cookies.add_private(
+        Cookie::build("token", access_token.secret().clone())
+            .same_site(SameSite::Lax)
+            .finish(),
+    );
     Redirect::to("/")
+}
+
+pub async fn google_logout(token: String) -> bool {
+    revoke_oauth(
+        AccessToken::new(token),
+        env::var("GOOGLE_CLIENT_ID").expect("Missing the GOOGLE_CLIENT_ID environment variable."),
+        env::var("GOOGLE_CLIENT_SECRET")
+            .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
+        "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
+        "https://www.googleapis.com/oauth2/v3/token".to_string(),
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/google",
+        "https://oauth2.googleapis.com/revoke".to_string(),
+    )
+    .await
 }
 
 #[get("/login/discord")]
@@ -304,9 +361,29 @@ pub async fn discord_callback(code: String, cookies: &CookieJar<'_>) -> Redirect
             return failure_redirect;
         }
     }
+    cookies.add(
+        Cookie::build("oauth", "discord".to_string())
+            .same_site(SameSite::Lax)
+            .finish(),
+    );
     Redirect::to("/")
 }
 
+async fn discord_logout(token: String) -> bool {
+    revoke_oauth(
+        AccessToken::new(token),
+        env::var("DISCORD_CLIENT_ID").expect("Missing the DISCORD_CLIENT_ID environment variable."),
+        env::var("DISCORD_CLIENT_SECRET")
+            .expect("Missing the DISCORD_CLIENT_SECRET environment variable."),
+        "https://discordapp.com/api/oauth2/authorize".to_string(),
+        "https://discordapp.com/api/oauth2/token".to_string(),
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/discord",
+        "https://discordapp.com/api/oauth2/token/revoke".to_string(),
+    )
+    .await
+}
+
+// TODO hogbisz oauth update to oauth2 crate
 #[get("/login/hogbisz")]
 pub async fn hogbisz_login(oauth2: OAuth2<Hogbisz>, cookies: &CookieJar<'_>) -> Redirect {
     oauth2
@@ -324,7 +401,49 @@ pub async fn hogbisz_callback(
             .same_site(SameSite::Lax)
             .finish(),
     );
+    cookies.add(
+        Cookie::build("oauth", "hogbisz".to_string())
+            .same_site(SameSite::Lax)
+            .finish(),
+    );
     Redirect::to("/")
+}
+
+async fn hogbisz_logout(_token: String) -> bool {
+    false
+}
+
+#[get("/logout")]
+pub async fn logout(cookies: &CookieJar<'_>) -> Redirect {
+    let oauth_type = match cookies.get("oauth") {
+        Some(cookie) => cookie.value().to_string(),
+        None => return Redirect::to("/"),
+    };
+    let token = match cookies.get_private("token") {
+        Some(cookie) => cookie.value().to_string(),
+        None => return Redirect::to("/"),
+    };
+
+    let user_id = match cookies.get("user_id") {
+        Some(cookie) => cookie.value().to_string(),
+        None => return Redirect::to("/"),
+    };
+
+    if oauth_token_is_valid(oauth_type.clone(), token.clone(), user_id).await {
+        // Implement error response query
+        match oauth_type.as_str() {
+            "discord" => discord_logout(token).await,
+            "hogbisz" => hogbisz_logout(token).await,
+            "google" => google_logout(token).await,
+            _ => return Redirect::to("/?logout=false"),
+        };
+    }
+
+    cookies.remove_private(Cookie::named("token"));
+    cookies.remove(Cookie::named("user_id"));
+    cookies.remove(Cookie::named("oauth"));
+
+    Redirect::to("/?logout=true")
 }
 
 #[post("/auth/create_user?<email>")]
@@ -343,6 +462,21 @@ pub async fn create_user(email: String) -> Status {
 
 #[get("/auth/me")]
 pub async fn me(cookies: &CookieJar<'_>) -> Json<String> {
+    let oauth_type = match cookies.get("oauth") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("Failed to get oauth type");
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+
+    let token = match cookies.get_private("token") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("Failed to get oauth token");
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
     let user_id = match cookies.get("user_id") {
         Some(cookie) => cookie.value().to_string(),
         None => {
@@ -350,6 +484,12 @@ pub async fn me(cookies: &CookieJar<'_>) -> Json<String> {
             return make_json_response!(401, "Unauthorized");
         }
     };
+
+    if !oauth_token_is_valid(oauth_type.clone(), token.clone(), user_id.clone()).await {
+        info!("Failed to validate oauth token!");
+        return make_json_response!(401, "Unauthorized");
+    }
+
     match get_user_by_user_id(&user_id) {
         Some(user) => make_json_response!(200, "OK", user),
         None => make_json_response!(500, "Internal Server Error"),

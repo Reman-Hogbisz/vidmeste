@@ -51,6 +51,42 @@ pub fn insert_new_video(video: &VideoNoId) -> Option<Video> {
     }
 }
 
+pub fn delete_video_with_video_id<T: Into<String>>(id: T) -> bool {
+    let connection = match crate::create_connection() {
+        Some(c) => c,
+        None => return false,
+    };
+    match diesel::delete(
+        crate::schema::videos::table.filter(crate::schema::videos::dsl::video_id.eq(id.into())),
+    )
+    .execute(&connection)
+    {
+        Ok(_) => true,
+        Err(e) => {
+            info!("Failed to delete video from database with error {}", e);
+            false
+        }
+    }
+}
+
+pub fn delete_video_with_id<T: Into<i32>>(id: T) -> bool {
+    let connection = match crate::create_connection() {
+        Some(c) => c,
+        None => return false,
+    };
+    match diesel::delete(
+        crate::schema::videos::table.filter(crate::schema::videos::dsl::id.eq(id.into())),
+    )
+    .execute(&connection)
+    {
+        Ok(_) => true,
+        Err(e) => {
+            info!("Failed to delete video from database with error {}", e);
+            false
+        }
+    }
+}
+
 /// Generates a new video id that does not exist in the database
 pub fn generate_new_video_id() -> String {
     let mut video_id = make_random_string(32);

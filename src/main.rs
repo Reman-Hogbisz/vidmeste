@@ -62,6 +62,7 @@ async fn main() {
                 crate::auth::auth::hogbisz_callback,
                 crate::auth::auth::discord_login,
                 crate::auth::auth::discord_callback,
+                crate::auth::auth::logout,
             ],
         )
         .mount(
