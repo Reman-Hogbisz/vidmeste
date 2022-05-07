@@ -151,7 +151,10 @@ pub async fn add_video(name: String, video: Data<'_>, cookies: &CookieJar<'_>) -
                         match duration.parse::<i32>() {
                             Ok(duration) => duration,
                             Err(e) => {
-                                warn!("Failed to parse duration from video with error: {}", e);
+                                warn!(
+                                    "Failed to parse duration {} from video with error: {}",
+                                    duration, e
+                                );
                                 -1
                             }
                         }

@@ -133,7 +133,7 @@ pub async fn google_login() -> Redirect {
             "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
             "https://www.googleapis.com/oauth2/v3/token".to_string(),
             env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
-                + "/auth/google",
+                + "/api/auth/google",
             "https://oauth2.googleapis.com/revoke".to_string(),
             vec!["https://www.googleapis.com/auth/userinfo.email".to_string()],
         ) {
@@ -153,7 +153,8 @@ pub async fn google_callback(state: String, code: String, cookies: &CookieJar<'_
             .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
         "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
         "https://www.googleapis.com/oauth2/v3/token".to_string(),
-        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/google",
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
+            + "/api/auth/google",
         "https://oauth2.googleapis.com/revoke".to_string(),
     ) {
         Some(client) => client,
@@ -252,7 +253,8 @@ pub async fn google_logout(token: String) -> bool {
             .expect("Missing the GOOGLE_CLIENT_SECRET environment variable."),
         "https://accounts.google.com/o/oauth2/v2/auth".to_string(),
         "https://www.googleapis.com/oauth2/v3/token".to_string(),
-        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/google",
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
+            + "/api/auth/google",
         "https://oauth2.googleapis.com/revoke".to_string(),
     )
     .await
@@ -269,7 +271,7 @@ pub async fn discord_login() -> Redirect {
             "https://discordapp.com/api/oauth2/authorize".to_string(),
             "https://discordapp.com/api/oauth2/token".to_string(),
             env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
-                + "/auth/discord",
+                + "/api/auth/discord",
             "https://discordapp.com/api/oauth2/token/revoke".to_string(),
             vec!["identify".to_string(), "email".to_string()],
         ) {
@@ -289,7 +291,8 @@ pub async fn discord_callback(code: String, cookies: &CookieJar<'_>) -> Redirect
             .expect("Missing the DISCORD_CLIENT_SECRET environment variable."),
         "https://discordapp.com/api/oauth2/authorize".to_string(),
         "https://discordapp.com/api/oauth2/token".to_string(),
-        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/discord",
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
+            + "/api/auth/discord",
         "https://discordapp.com/api/oauth2/token/revoke".to_string(),
     ) {
         Some(client) => client,
@@ -377,7 +380,8 @@ async fn discord_logout(token: String) -> bool {
             .expect("Missing the DISCORD_CLIENT_SECRET environment variable."),
         "https://discordapp.com/api/oauth2/authorize".to_string(),
         "https://discordapp.com/api/oauth2/token".to_string(),
-        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.") + "/auth/discord",
+        env::var("BASE_URL").expect("Missing the BASE_URL environment variable.")
+            + "/api/auth/discord",
         "https://discordapp.com/api/oauth2/token/revoke".to_string(),
     )
     .await

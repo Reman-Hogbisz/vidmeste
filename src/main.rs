@@ -19,7 +19,7 @@ pub mod video;
 
 use diesel::prelude::*;
 use dotenv::dotenv;
-use rocket::{fs::NamedFile, routes};
+use rocket::{fs::NamedFile, response::Redirect, routes};
 use rocket_oauth2::OAuth2;
 use std::{
     env,
@@ -39,6 +39,11 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
     }
 }
 
+#[catch(404)]
+async fn not_found_catcher() -> Redirect {
+    Redirect::to("/#/404")
+}
+
 #[rocket::main]
 async fn main() {
     dotenv().ok();
@@ -51,11 +56,16 @@ async fn main() {
     std::mem::drop(connection);
 
     match rocket::build()
+        .mount("/", routes![index, files,])
         .mount(
-            "/",
+            "/api",
             routes![
-                index,
-                files,
+                crate::api::api::get_all_users,
+                crate::auth::auth::create_user,
+                crate::api::api::get_user_by_id,
+                crate::api::api::get_all_videos,
+                crate::api::api::get_video_with_id,
+                crate::auth::auth::me,
                 crate::auth::auth::google_login,
                 crate::auth::auth::google_callback,
                 crate::auth::auth::hogbisz_login,
@@ -66,23 +76,13 @@ async fn main() {
             ],
         )
         .mount(
-            "/api",
-            routes![
-                crate::api::api::get_all_users,
-                crate::auth::auth::create_user,
-                crate::api::api::get_user_by_id,
-                crate::api::api::get_all_videos,
-                crate::api::api::get_video_with_id,
-                crate::auth::auth::me,
-            ],
-        )
-        .mount(
             "/video",
             routes![
                 crate::video::public::get_video,
                 crate::video::public::add_video,
             ],
         )
+        .register("/", catchers![not_found_catcher])
         .attach(crate::util::CORS)
         .attach(OAuth2::<crate::auth::auth::Hogbisz>::fairing("hogbisz"))
         .launch()
