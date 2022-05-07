@@ -1,6 +1,9 @@
-import { createWebHashHistory, createRouter } from "vue-router";
+import { createWebHistory, createRouter } from "vue-router";
 import { createApp } from "vue";
 import "./index.css";
+
+import axios from "axios";
+import VueAxios from "vue-axios";
 
 import App from "@/App.vue";
 
@@ -17,17 +20,42 @@ const routes = [
     },
     // Error Pages
     {
-        path: "/404",
+        path: "/:pathMatch(.*)*",
         name: "404",
         component: () => import("@/pages/errors/404.vue"),
     },
 ];
 
 const router = createRouter({
-    history: createWebHashHistory(),
+    history: createWebHistory(),
     routes,
 });
 
 const app = createApp(App);
 app.use(router);
+app.mixin({
+    methods: {
+        getUser: async () => {
+            let user = null;
+            await axios
+                .get("/api/auth/me")
+                .then((response) => {
+                    if (response.data.status == 200) {
+                        console.log(JSON.stringify(response.data));
+                        console.log(JSON.stringify(response.data.data));
+                        user = response.data.data;
+                    } else {
+                        console.error(
+                            `Failed to get user: ${response.data.message}`
+                        );
+                    }
+                })
+                .catch((error) => {
+                    console.error(`Failed to get user: ${error}`);
+                });
+            return user;
+        },
+    },
+});
+app.use(VueAxios, axios);
 app.mount("#app");

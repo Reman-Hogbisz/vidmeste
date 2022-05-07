@@ -8,10 +8,7 @@
             type="button"
             class="xl:text-xl text-white bg-[#4285F4] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-full text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
             <img src="@/assets/img/icon.svg" class="w-6 h-6 mr-2 -ml-1" />
-
-            <router-link to="/"
-                ><span class="text-white">Go Home!</span></router-link
-            >
+            <span class="text-white">Go Home!</span>
         </button>
     </div>
 </template>
@@ -19,6 +16,13 @@
 <script>
 export default {
     name: "NotFound404",
+    methods: {
+        gotoURL: function (url) {
+            const currentLocation = new URL(window.location);
+            history.pushState({}, "", currentLocation);
+            window.location.replace(url);
+        },
+    },
 };
 </script>
 

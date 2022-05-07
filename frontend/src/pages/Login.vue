@@ -16,7 +16,7 @@
                             ><span class="text-rh-lightblue">MESTE</span>
                         </label>
                         <button
-                            v-on:click="gotoURL('/login/hogbisz')"
+                            v-on:click="gotoURL('/api/login/hogbisz')"
                             type="button"
                             class="xl:text-xl text-white bg-rh-green hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
                             <svg
@@ -78,7 +78,7 @@
                             Sign in with Hogbisz
                         </button>
                         <button
-                            v-on:click="gotoURL('/login/github')"
+                            v-on:click="gotoURL('/api/login/github')"
                             type="button"
                             class="xl:text-xl text-white bg-[#24292F] hover:bg-[#24292F]/90 focus:ring-4 focus:outline-none focus:ring-[#24292F]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 dark:hover:bg-[#050708]/30 mr-2 mb-2">
                             <svg
@@ -97,7 +97,7 @@
                             Sign in with Github
                         </button>
                         <button
-                            v-on:click="gotoURL('/login/google')"
+                            v-on:click="gotoURL('/api/login/google')"
                             type="button"
                             class="xl:text-xl text-white bg-[#4285F4] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
                             <svg
@@ -116,7 +116,7 @@
                             Sign in with Google
                         </button>
                         <button
-                            v-on:click="gotoURL('/login/discord')"
+                            v-on:click="gotoURL('/api/login/discord')"
                             type="button"
                             class="xl:text-xl text-white bg-[#5865F2] hover:bg-[#4285F4]/90 focus:ring-4 focus:outline-none focus:ring-[#4285F4]/50 font-medium rounded-lg text-sm px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-[#4285F4]/55 mr-2 mb-2">
                             <svg

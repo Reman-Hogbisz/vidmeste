@@ -29,10 +29,11 @@
                     <!-- Secondary Navbar items -->
                     <div class="items-center hidden space-x-3 md:flex">
                         <a
-                            href="/#/login"
-                            v-on:click="gotoURL('/#/login')"
+                            v-if="user"
+                            href="/api/logout"
+                            v-on:click="gotoURL('/api/logout')"
                             class="px-2 py-2 font-medium text-gray-500 transition duration-300 rounded bg-rh-lightblue/10 hover:bg-rh-lightblue hover:text-white"
-                            >Login</a
+                            >Logout</a
                         >
                     </div>
                     <!-- Mobile menu button -->
@@ -74,6 +75,12 @@
 <script>
 export default {
     name: "NavBar",
+    props: {
+        user: {
+            type: Object,
+            default: null,
+        },
+    },
     methods: {
         gotoURL: function (url) {
             const currentLocation = new URL(window.location);
