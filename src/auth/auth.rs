@@ -419,35 +419,35 @@ async fn hogbisz_logout(_token: String) -> bool {
 
 #[get("/logout")]
 pub async fn logout(cookies: &CookieJar<'_>) -> Redirect {
-    let oauth_type = match cookies.get("oauth") {
-        Some(cookie) => cookie.value().to_string(),
-        None => return Redirect::to("/"),
-    };
-    let token = match cookies.get_private("token") {
-        Some(cookie) => cookie.value().to_string(),
-        None => return Redirect::to("/"),
-    };
+    let mut redirect = Redirect::to("/?logout=false");
 
-    let user_id = match cookies.get("user_id") {
-        Some(cookie) => cookie.value().to_string(),
-        None => return Redirect::to("/"),
-    };
+    if let (Some(oauth_type), Some(token), Some(user_id)) = (
+        cookies.get("oauth"),
+        cookies.get_private("token"),
+        cookies.get("user_id"),
+    ) {
+        let oauth_type = oauth_type.value().to_string();
+        let token = token.value().to_string();
+        let user_id = user_id.value().to_string();
 
-    if oauth_token_is_valid(oauth_type.clone(), token.clone(), user_id).await {
-        // Implement error response query
-        match oauth_type.as_str() {
-            "discord" => discord_logout(token).await,
-            "hogbisz" => hogbisz_logout(token).await,
-            "google" => google_logout(token).await,
-            _ => return Redirect::to("/?logout=false"),
-        };
+        if oauth_token_is_valid(oauth_type.clone(), token.clone(), user_id).await {
+            // Implement error response query
+            if match oauth_type.as_str() {
+                "discord" => discord_logout(token).await,
+                "hogbisz" => hogbisz_logout(token).await,
+                "google" => google_logout(token).await,
+                _ => false,
+            } {
+                redirect = Redirect::to("/?logout=true");
+            }
+        }
     }
 
     cookies.remove_private(Cookie::named("token"));
     cookies.remove(Cookie::named("user_id"));
     cookies.remove(Cookie::named("oauth"));
 
-    Redirect::to("/?logout=true")
+    redirect
 }
 
 #[post("/auth/create_user?<email>")]

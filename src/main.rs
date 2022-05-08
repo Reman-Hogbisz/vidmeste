@@ -41,7 +41,7 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 
 #[catch(404)]
 async fn not_found_catcher() -> Redirect {
-    Redirect::to("/#/404")
+    Redirect::to("/404")
 }
 
 #[rocket::main]
@@ -81,6 +81,7 @@ async fn main() {
                 crate::video::public::get_video,
                 crate::video::public::add_video,
                 crate::video::public::delete_video,
+                crate::video::public::get_video_info,
             ],
         )
         .register("/", catchers![not_found_catcher])

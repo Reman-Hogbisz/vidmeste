@@ -3,7 +3,7 @@ use crate::{
     make_json_response,
     models::{Video, VideoNoId},
     unwrap_or_return_option,
-    video::sql::{generate_new_video_id, get_video_by_id, insert_new_video},
+    video::sql::{generate_new_video_id, get_video_by_video_id, insert_new_video},
 };
 use rocket::response::content::Json;
 use rocket::{
@@ -18,6 +18,66 @@ use std::path::PathBuf;
 
 use super::util::{get_filename_ending, valid_video_filename_ending};
 
+#[get("/<id>?<one_time>")]
+#[allow(unused_variables)]
+pub async fn get_video_info(
+    id: String,
+    one_time: Option<String>,
+    cookies: &CookieJar<'_>,
+) -> Json<String> {
+    // Implement one time code
+    let user_id = match cookies.get("user_id") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("No user_id cookie found");
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+    let oauth_type = match cookies.get("oauth") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("No oauth type cookie found");
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+
+    let token = match cookies.get_private("token") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("No token cookie found");
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+
+    if !oauth_token_is_valid(oauth_type.clone(), token.clone(), user_id.clone()).await {
+        info!("User {} had an invalid token", user_id);
+        return make_json_response!(401, "Unauthorized");
+    }
+
+    let user = match get_user_by_user_id(&user_id) {
+        Some(user) => user,
+        None => {
+            info!("No user found with user_id {}", user_id);
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+
+    let video: Video = match get_video_by_video_id(&id) {
+        Some(video) => video,
+        None => {
+            info!("No video found with video_id {}", id);
+            return make_json_response!(404, "Not found");
+        }
+    };
+
+    if video.owner_id != user.id && !crate::auth::util::user_is_admin(user) {
+        // TODO : One time password
+        return make_json_response!(401, "Unauthorized");
+    }
+
+    make_json_response!(200, "Ok", video)
+}
+
 #[get("/<id>/<filename>?<one_time>")]
 #[allow(unused_variables)]
 pub async fn get_video<'a>(
@@ -26,7 +86,7 @@ pub async fn get_video<'a>(
     one_time: Option<String>,
     cookies: &CookieJar<'_>,
 ) -> Option<SeekStream<'a>> {
-    // TODO : Implement authentication
+    // TODO : Implement one time code
 
     let user_id = match cookies.get("user_id") {
         Some(cookie) => cookie.value().to_string(),
@@ -35,6 +95,27 @@ pub async fn get_video<'a>(
             return None;
         }
     };
+    let oauth_type = match cookies.get("oauth") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("No oauth type cookie found");
+            return None;
+        }
+    };
+
+    let token = match cookies.get_private("token") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("No token cookie found");
+            return None;
+        }
+    };
+
+    if !oauth_token_is_valid(oauth_type.clone(), token.clone(), user_id.clone()).await {
+        info!("User {} had an invalid token", user_id);
+        return None;
+    }
+
     let user = match get_user_by_user_id(&user_id) {
         Some(user) => user,
         None => {
@@ -43,7 +124,7 @@ pub async fn get_video<'a>(
         }
     };
 
-    let video: Video = unwrap_or_return_option!(get_video_by_id(&id), "Video not found");
+    let video: Video = unwrap_or_return_option!(get_video_by_video_id(&id), "Video not found");
 
     if video.owner_id != user.id && !crate::auth::util::user_is_admin(user) {
         // TODO : One time password
@@ -84,7 +165,7 @@ pub async fn delete_video(id: String, cookies: &CookieJar<'_>) -> Json<String> {
         }
     };
 
-    let video = match get_video_by_id(&id) {
+    let video = match get_video_by_video_id(&id) {
         Some(video) => video,
         None => {
             info!("Could not find video with id {}", id);
