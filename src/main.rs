@@ -76,10 +76,11 @@ async fn main() {
             ],
         )
         .mount(
-            "/video",
+            "/api/video",
             routes![
                 crate::video::public::get_video,
                 crate::video::public::add_video,
+                crate::video::public::delete_video,
             ],
         )
         .register("/", catchers![not_found_catcher])

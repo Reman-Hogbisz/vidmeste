@@ -18,8 +18,9 @@ CREATE TABLE videos (
     id SERIAL PRIMARY KEY,
     video_id TEXT NOT NULL,
     video_path TEXT UNIQUE NOT NULL,
+    video_url TEXT UNIQUE NOT NULL,
     video_name TEXT NOT NULL,
-    video_length INTEGER NOT NULL,
+    video_length FLOAT NOT NULL,
     video_desc TEXT NOT NULL,
     owner_id SERIAL references users(id),
     thumbnail_path TEXT

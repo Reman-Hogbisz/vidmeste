@@ -18,6 +18,11 @@ const routes = [
         name: "Login",
         component: () => import("@/pages/Login.vue"),
     },
+    {
+        path: "/video",
+        name: "Video",
+        component: () => import("@/pages/Video.vue"),
+    },
     // Error Pages
     {
         path: "/:pathMatch(.*)*",
