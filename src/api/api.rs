@@ -1,11 +1,11 @@
 use crate::auth::{sql, util};
 use crate::{auth::sql::dump_user_table, make_json_response};
 use rocket::http::CookieJar;
-use rocket::response::content::Json;
+use rocket::response::content::RawJson;
 use serde_json::json;
 
 #[get("/users")]
-pub async fn get_all_users(cookies: &CookieJar<'_>) -> Json<String> {
+pub async fn get_all_users(cookies: &CookieJar<'_>) -> RawJson<String> {
     let user_id = match cookies.get("user_id") {
         Some(user_id) => user_id.value().to_string(),
         None => {
@@ -26,7 +26,7 @@ pub async fn get_all_users(cookies: &CookieJar<'_>) -> Json<String> {
 }
 
 #[get("/users?<id>")]
-pub async fn get_user_by_id(id: i32, cookies: &CookieJar<'_>) -> Json<String> {
+pub async fn get_user_by_id(id: i32, cookies: &CookieJar<'_>) -> RawJson<String> {
     let user_id = match cookies.get("user_id") {
         Some(user_id) => user_id.value().to_string(),
         None => {
@@ -47,7 +47,7 @@ pub async fn get_user_by_id(id: i32, cookies: &CookieJar<'_>) -> Json<String> {
 }
 
 #[get("/videos")]
-pub async fn get_all_videos(cookies: &CookieJar<'_>) -> Json<String> {
+pub async fn get_all_videos(cookies: &CookieJar<'_>) -> RawJson<String> {
     let user_id = match cookies.get("user_id") {
         Some(user_id) => user_id.value().to_string(),
         None => {
@@ -71,7 +71,7 @@ pub async fn get_all_videos(cookies: &CookieJar<'_>) -> Json<String> {
 }
 
 #[get("/videos?<id>")]
-pub async fn get_video_with_id(id: String, cookies: &CookieJar<'_>) -> Json<String> {
+pub async fn get_video_with_id(id: String, cookies: &CookieJar<'_>) -> RawJson<String> {
     let user_id = match cookies.get("user_id") {
         Some(user_id) => user_id.value().to_string(),
         None => {

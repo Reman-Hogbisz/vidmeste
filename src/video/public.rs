@@ -5,7 +5,7 @@ use crate::{
     unwrap_or_return_option,
     video::sql::{generate_new_video_id, get_video_by_video_id, insert_new_video},
 };
-use rocket::response::content::Json;
+use rocket::response::content::RawJson;
 use rocket::{
     data::{Data, ToByteUnit},
     http::CookieJar,
@@ -24,7 +24,7 @@ pub async fn get_video_info(
     id: String,
     one_time: Option<String>,
     cookies: &CookieJar<'_>,
-) -> Json<String> {
+) -> RawJson<String> {
     // Implement one time code
     let user_id = match cookies.get("user_id") {
         Some(cookie) => cookie.value().to_string(),
@@ -135,7 +135,7 @@ pub async fn get_video<'a>(
 }
 
 #[delete("/<id>")]
-pub async fn delete_video(id: String, cookies: &CookieJar<'_>) -> Json<String> {
+pub async fn delete_video(id: String, cookies: &CookieJar<'_>) -> RawJson<String> {
     let user_id = match cookies.get("user_id") {
         Some(cookie) => cookie.value().to_string(),
         None => {
@@ -195,7 +195,7 @@ pub async fn delete_video(id: String, cookies: &CookieJar<'_>) -> Json<String> {
 }
 
 #[post("/add?<name>", data = "<video>")]
-pub async fn add_video(name: String, video: Data<'_>, cookies: &CookieJar<'_>) -> Json<String> {
+pub async fn add_video(name: String, video: Data<'_>, cookies: &CookieJar<'_>) -> RawJson<String> {
     let user_id = match cookies.get("user_id") {
         Some(cookie) => cookie.value().to_string(),
         None => {
@@ -334,4 +334,93 @@ pub async fn add_video(name: String, video: Data<'_>, cookies: &CookieJar<'_>) -
             make_json_response!(500, "Internal Server Error")
         }
     }
+}
+
+#[post("/edit?<id>", data = "<info>", format = "json")]
+pub async fn edit_video(
+    id: String,
+    mut info: rocket::serde::json::Json<crate::video::model::VideoInfo>,
+    cookies: &CookieJar<'_>,
+) -> RawJson<String> {
+    let user_id = match cookies.get("user_id") {
+        Some(cookie) => cookie.value().to_string(),
+        None => {
+            info!("No user_id cookie found");
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+    let oauth_type = match cookies.get("oauth") {
+        Some(cookie) => cookie.value().to_string(),
+        None => return make_json_response!(401, "Unauthorized"),
+    };
+
+    let token = match cookies.get_private("token") {
+        Some(cookie) => cookie.value().to_string(),
+        None => return make_json_response!(401, "Unauthorized"),
+    };
+
+    if !oauth_token_is_valid(oauth_type.clone(), token.clone(), user_id.clone()).await {
+        return make_json_response!(401, "Unauthorized");
+    }
+
+    let user = match get_user_by_user_id(&user_id) {
+        Some(user) => user,
+        None => {
+            info!("No user found with user_id {}", user_id);
+            return make_json_response!(401, "Unauthorized");
+        }
+    };
+
+    let video_id = id;
+
+    let mut video = match get_video_by_video_id(&video_id) {
+        Some(video) => video,
+        None => {
+            info!("No video found with video_id {}", video_id);
+            return make_json_response!(400, "Bad Request");
+        }
+    };
+
+    if video.owner_id != user.id {
+        info!("User {} is not the owner of video {}", user.id, video.id);
+        return make_json_response!(401, "Unauthorized");
+    }
+
+    if let Some(video_name) = &mut info.name {
+        if video_name.len() > 128 {
+            info!("Name too long. Cutting off at 128 characters");
+            video_name.truncate(128);
+        }
+        video.video_name = video_name.clone();
+    }
+
+    if let Some(video_desc) = &mut info.description {
+        if video_desc.len() > 1024 {
+            info!("Description too long. Cutting off at 1024 characters");
+            video_desc.truncate(1024);
+        }
+        video.video_desc = video_desc.clone();
+    }
+
+    if let Some(shared_ids) = &mut info.share {
+        for id in shared_ids {
+            let user_share = match get_user_by_user_id(id) {
+                Some(u) => u,
+                None => {
+                    info!("No user found with user_id {}", id);
+                    continue;
+                }
+            };
+            if user_share.id == user.id {
+                info!(
+                    "User {} is trying to share video {} with themselves",
+                    user.id, video.id
+                );
+                continue;
+            }
+            // TODO : Add share to `video_shares` table
+        }
+    }
+
+    make_json_response!(200, "Ok")
 }

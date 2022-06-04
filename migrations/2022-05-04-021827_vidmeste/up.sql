@@ -26,6 +26,12 @@ CREATE TABLE videos (
     thumbnail_path TEXT
 );
 
+CREATE TABLE video_shares (
+    id SERIAL PRIMARY KEY,
+    video_id SERIAL references videos(id),
+    user_id SERIAL references users(id)
+);
+
 CREATE TABLE one_time_video (
     id SERIAL PRIMARY KEY,
     video_id SERIAL references videos(id),

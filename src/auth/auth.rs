@@ -11,7 +11,7 @@ use oauth2::{
     StandardTokenResponse, TokenResponse, TokenUrl,
 };
 use rocket::http::{Cookie, CookieJar, SameSite, Status};
-use rocket::response::content::Json;
+use rocket::response::content::RawJson;
 use rocket::response::Redirect;
 use rocket_oauth2::OAuth2;
 use serde::{Deserialize, Serialize};
@@ -465,7 +465,7 @@ pub async fn create_user(email: String) -> Status {
 }
 
 #[get("/auth/me")]
-pub async fn me(cookies: &CookieJar<'_>) -> Json<String> {
+pub async fn me(cookies: &CookieJar<'_>) -> RawJson<String> {
     let oauth_type = match cookies.get("oauth") {
         Some(cookie) => cookie.value().to_string(),
         None => {
